@@ -1,6 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 class PDFViewerScreen extends StatelessWidget {
   final String path;
@@ -20,9 +21,9 @@ class PDFViewerScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: Text(title)),
-      body: PDFView(
-        filePath: path,
-      ),
+      body: path.startsWith('http')
+          ? SfPdfViewer.network(path)
+          : SfPdfViewer.file(File(path)),
     );
   }
 }
