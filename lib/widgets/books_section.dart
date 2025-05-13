@@ -14,7 +14,10 @@ class BookSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        Text(
+          title,
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
         SizedBox(height: 8),
         SizedBox(
           height: 200,
@@ -28,10 +31,12 @@ class BookSection extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => PDFViewerScreen(
-                        path: book.pdfUrl,
-                        title: book.title,
-                      ),
+                      builder:
+                          (_) => PDFViewerScreen(
+                            path: book.pdfUrl,
+                            title: book.title,
+                            cover: book.cover,
+                          ),
                     ),
                   );
                 },
@@ -46,8 +51,9 @@ class BookSection extends StatelessWidget {
                           child: Image.network(
                             book.cover.trim(),
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) =>
-                                Container(color: Colors.grey),
+                            errorBuilder:
+                                (context, error, stackTrace) =>
+                                    Container(color: Colors.grey),
                           ),
                         ),
                       ),

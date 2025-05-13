@@ -1,4 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:layar_baca_3/screens/favorite_book_screen.dart';
+import 'package:layar_baca_3/screens/feedback_screen.dart';
+import 'package:layar_baca_3/screens/profile_screen.dart';
+import 'package:layar_baca_3/screens/recent_book_screen.dart';
+import 'package:layar_baca_3/screens/register_screen.dart';
+import 'package:layar_baca_3/screens/settings_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/home_screen.dart';
 
@@ -24,6 +30,14 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(fontFamily: 'Roboto'),
       home: HomeScreen(),
+      routes: {
+        '/profile': (context) => const ProfileScreen(),
+        '/register': (context) => const RegisterScreen(),
+        '/settings': (context) => const SettingsScreen(),
+        '/feedback': (context) => const FeedbackScreen(),
+        '/favorite': (context) => const FavoriteBooksScreen(),
+        '/recent': (context) => const RecentBooksScreen(),
+      },
     );
   }
 }

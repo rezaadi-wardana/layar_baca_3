@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'library_screen.dart'; // Pastikan import ini ada
-// import 'store_screen.dart';   // Tambahkan nanti jika punya halaman Store
-import 'home_content.dart';   // Pisahkan konten home untuk kerapian
+import 'profile_screen.dart'; // Tambahkan nanti jika punya halaman Store
+import 'home_content.dart'; // Pisahkan konten home untuk kerapian
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -12,9 +12,9 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
   final List<Widget> _screens = [
-    HomeContent(),       // Halaman Beranda
-    LibraryScreen(),     // Halaman Perpustakaan
-    // Placeholder(),       // Ganti dengan StoreScreen() jika sudah ada
+    HomeContent(), // Halaman Beranda
+    LibraryScreen(), // Halaman Perpustakaan
+    ProfileScreen(),
   ];
 
   void _onItemTapped(int index) {

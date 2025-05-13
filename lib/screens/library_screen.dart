@@ -79,6 +79,7 @@ Widget build(BuildContext context) {
                             builder: (_) => PDFViewerScreen(
                               path: book.pdfUrl,
                               title: book.title,
+                              cover: book.cover,
                             ),
                           ),
                         );
