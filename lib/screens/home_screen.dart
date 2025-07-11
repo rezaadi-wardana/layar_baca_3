@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart'; // ✅ Import localization
 import 'library_screen.dart'; // Pastikan import ini ada
 import 'profile_screen.dart'; // Tambahkan nanti jika punya halaman Store
 import 'home_content.dart'; // Pisahkan konten home untuk kerapian
+
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -25,6 +27,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+     final t = AppLocalizations.of(context)!;
+     
     return Scaffold(
       body: SafeArea(child: _screens[_selectedIndex]),
       bottomNavigationBar: BottomNavigationBar(
@@ -33,9 +37,9 @@ class _HomeScreenState extends State<HomeScreen> {
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
         items: [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.book), label: 'Library'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: t.home),
+          BottomNavigationBarItem(icon: Icon(Icons.book), label: t.library),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: t.profile),
         ],
       ),
     );

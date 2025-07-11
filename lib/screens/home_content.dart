@@ -5,6 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/books_section.dart';
 import '../screens/pdf_viewer.dart';
 import '../models/books.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class HomeContent extends StatefulWidget {
   @override
@@ -16,9 +18,9 @@ class _HomeContentState extends State<HomeContent> {
   String? lastReadPath;
   String? lastReadCover;
 
-  @override
   late Future<List<Book>> _books;
 
+  @override
   void initState() {
     super.initState();
     loadLastRead();
@@ -34,127 +36,205 @@ class _HomeContentState extends State<HomeContent> {
     });
   }
 
+  Future<void> toggleFavorite(int bookId) async {
+    final supabase = Supabase.instance.client;
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+
+    final existing = await supabase
+        .from('favorites')
+        .select()
+        .eq('user_id', user.id)
+        .eq('book_id', bookId);
+
+    if (existing.isEmpty) {
+      await supabase.from('favorites').insert({
+        'user_id': user.id,
+        'book_id': bookId,
+      });
+    } else {
+      await supabase
+          .from('favorites')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('book_id', bookId);
+    }
+
+    setState(() {});
+  }
+
+  Future<bool> isFavorite(int bookId) async {
+    final supabase = Supabase.instance.client;
+    final user = supabase.auth.currentUser;
+    if (user == null) return false;
+
+    final data = await supabase
+        .from('favorites')
+        .select()
+        .eq('user_id', user.id)
+        .eq('book_id', bookId);
+
+    return data.isNotEmpty;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+    final user = Supabase.instance.client.auth.currentUser;
+
     return Padding(
       padding: const EdgeInsets.all(12),
       child: ListView(
         children: [
-          Center(child: Text('Layar Baca 3', style: TextStyle(fontSize: 24))),
-          SizedBox(height: 20),
-          Text(
-            "Terakhir Dibuka",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset(
+                'assets/images/logo.png',
+                height: 32,
+              ),
+              const SizedBox(width: 10),
+              Text(loc.appTitle, style: const TextStyle(fontSize: 24)),
+            ],
           ),
-          SizedBox(height: 8),
-          if (lastReadTitle != null &&
-              lastReadPath != null &&
-              lastReadCover != null)
-            GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder:
-                        (_) => PDFViewerScreen(
-                          path: lastReadPath!,
-                          title: lastReadTitle!,
-                          cover: lastReadCover!,
+          const SizedBox(height: 20),
+
+          if (user != null) ...[
+            Text(
+              loc.lastOpened,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                if (lastReadTitle != null && lastReadPath != null && lastReadCover != null)
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PDFViewerScreen(
+                            path: lastReadPath!,
+                            title: lastReadTitle!,
+                            cover: lastReadCover!,
+                          ),
                         ),
-                  ),
-                );
-              },
-              child: Container(
-                  margin: EdgeInsets.only(right: 12),
-                width: 120,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        lastReadCover!.trim(),
-                        height: 180,
-                        fit: BoxFit.cover,
-                        errorBuilder:
-                            (context, error, stackTrace) =>
-                                Container(height: 180, color: Colors.grey),
+                      );
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 12),
+                      width: 120,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              lastReadCover!.trim(),
+                              height: 180,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Container(height: 180, color: Colors.grey),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            lastReadTitle!,
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ],
                       ),
                     ),
-                    SizedBox(height: 4),
-                    Text(
-                      lastReadTitle!,
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12),
+                  )
+                else
+                  Expanded(child: Text(loc.noBookRead)),
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.asset(
+                      'assets/images/literacy_banner.png',
+                      height: 180,
+                      fit: BoxFit.cover,
                     ),
-                  ],
-                ),
-              ),
-            )
-          // GestureDetector(
-          //       onTap: () {
-          //         Navigator.push(
-          //           context,
-          //           MaterialPageRoute(
-          //             builder: (_) => PDFViewerScreen(
-          //               path:lastReadPath!,
-          //               title:lastReadTitle!,
-          //             ),
-          //           ),
-          //         );
-          //       },
-          //       child: Container(
-          //         margin: EdgeInsets.only(right: 12),
-          //         width: 120,
-          //         child: Column(
-          //           children: [
-          //             Expanded(
-          //               child: ClipRRect(
-          //                 borderRadius: BorderRadius.circular(8),
-          //                 child: Image.network(
-          //                   lastReadCover!.trim(),
-          //                   fit: BoxFit.cover,
-          //                   errorBuilder: (context, error, stackTrace) =>
-          //                       Container(color: Colors.grey),
-          //                 ),
-          //               ),
-          //             ),
-          //             SizedBox(height: 4),
-          //             Text(
-          //               lastReadTitle!,
-          //               textAlign: TextAlign.center,
-          //               maxLines: 2,
-          //               overflow: TextOverflow.ellipsis,
-          //               style: TextStyle(fontSize: 12),
-          //             ),
-          //           ],
-          //         ),
-          //       ),
-          //     )
-          else
-            Text("Belum ada buku yang dibaca."),
-          SizedBox(height: 20),
+                  ),
+                )
+              ],
+            ),
+            const SizedBox(height: 20),
+          ],
+
           FutureBuilder<List<Book>>(
             future: _books,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return Center(child: CircularProgressIndicator());
+                return const Center(child: CircularProgressIndicator());
               } else if (snapshot.hasError) {
-                return Text('Gagal memuat data: ${snapshot.error}');
+                return Text('${loc.failedToLoad} ${snapshot.error}');
               } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return Text('Tidak ada buku tersedia.');
+                return Text(loc.noBooks);
               }
 
               final books = snapshot.data!;
+              final sortedBooks = List<Book>.from(books);
+              sortedBooks.sort((a, b) => b.id.compareTo(a.id));
+              final top5 = sortedBooks.take(5).toList();
+              final allOtherBooks = sortedBooks.skip(5).toList();
+
               return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  BookSection(title: "Populer", books: books),
-                  SizedBox(height: 20),
-                  BookSection(
-                    title: "Rekomendasi",
-                    books: books.reversed.toList(),
+                  Text("Buku Terbaru", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 240,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: top5.length,
+                      itemBuilder: (context, index) {
+                        final book = top5[index];
+                        return FutureBuilder<bool>(
+                          future: isFavorite(book.id),
+                          builder: (context, favSnapshot) {
+                            final isFav = favSnapshot.data ?? false;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 12),
+                              child: SizedBox(
+                                width: 140,
+                                child: _buildBookCard(book, isFav),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  Text("Semua Buku", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 0.65,
+                    ),
+                    itemCount: allOtherBooks.length,
+                    itemBuilder: (context, index) {
+                      final book = allOtherBooks[index];
+                      return FutureBuilder<bool>(
+                        future: isFavorite(book.id),
+                        builder: (context, favSnapshot) {
+                          final isFav = favSnapshot.data ?? false;
+                          return _buildBookCard(book, isFav);
+                        },
+                      );
+                    },
                   ),
                 ],
               );
@@ -165,9 +245,61 @@ class _HomeContentState extends State<HomeContent> {
     );
   }
 
-  @override
-  void debugFillProperties(DiagnosticPropertiesBuilder properties) {
-    super.debugFillProperties(properties);
-    properties.add(DiagnosticsProperty<Future<List<Book>>>('_books', _books));
+  Widget _buildBookCard(Book book, bool isFav) {
+    final user = Supabase.instance.client.auth.currentUser;
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PDFViewerScreen(
+              path: book.pdfUrl,
+              title: book.title,
+              cover: book.cover,
+            ),
+          ),
+        );
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                book.cover,
+                height: 180,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) =>
+                    Container(height: 180, color: Colors.grey),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  book.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ),
+              if (user != null)
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  icon: Icon(
+                    isFav ? Icons.favorite : Icons.favorite_border,
+                    color: Colors.red,
+                    size: 20,
+                  ),
+                  onPressed: () => toggleFavorite(book.id),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }

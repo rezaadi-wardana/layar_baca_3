@@ -1,5 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as path;
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -18,14 +22,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<Map<String, dynamic>> _getProfileData() async {
     final user = supabase.auth.currentUser;
-    if (user == null) {
-      throw Exception("User tidak ditemukan");
-    }
+    if (user == null) throw Exception("User tidak ditemukan");
 
     final response =
         await supabase.from('profiles').select().eq('id', user.id).single();
 
     return response;
+  }
+
+  Future<void> _fetchProfile() async {
+    final user = supabase.auth.currentUser;
+    if (user != null) {
+      final response =
+          await supabase.from('profiles').select().eq('id', user.id).single();
+      setState(() => profileData = response);
+    }
   }
 
   Future<void> _login() async {
@@ -37,44 +48,61 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
 
       if (response.user != null) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Berhasil Login')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Berhasil Login')));
         await _fetchProfile();
         setState(() {});
       }
     } on AuthException catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.message)));
     } finally {
       setState(() => isLoading = false);
     }
   }
 
-  Future<void> _fetchProfile() async {
-    final user = supabase.auth.currentUser;
-    if (user != null) {
-      final response =
-          await supabase.from('profiles').select().eq('id', user.id).single();
+  Future<void> _logout() async {
+    await supabase.auth.signOut();
+    setState(() => profileData = null);
+  }
 
-      setState(() {
-        profileData = response;
-      });
+  Future<void> _pickAndUploadAvatar() async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked == null) return;
+
+    final file = File(picked.path);
+    final fileExt = path.extension(file.path);
+    final fileName = '${user.id}$fileExt';
+    final filePath = 'avatars/$fileName';
+
+    try {
+      await supabase.storage.from('avatars').upload(
+            filePath,
+            file,
+            fileOptions: const FileOptions(upsert: true),
+          );
+
+      final imageUrl =
+          supabase.storage.from('avatars').getPublicUrl(filePath);
+
+      await supabase.from('profiles').update({'avatar_url': imageUrl}).eq('id', user.id);
+
+      await _fetchProfile();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Foto profil berhasil diperbarui')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Gagal upload: $e')));
     }
   }
 
-  Future<void> _logout() async {
-    await supabase.auth.signOut();
-    profileData = null;
-    setState(() {});
-  }
-
-  Widget _buildTextField(
-    TextEditingController controller,
-    String label, {
-    bool obscure = false,
-  }) {
+  Widget _buildTextField(TextEditingController controller, String label,
+      {bool obscure = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: TextField(
@@ -110,17 +138,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ElevatedButton(
           onPressed: _login,
           style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-          child:
-              isLoading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text("Login"),
+          child: isLoading
+              ? const CircularProgressIndicator(color: Colors.white)
+              : const Text("Login"),
         ),
         const SizedBox(height: 10),
         const Center(child: Text("Belum punya akun?")),
         OutlinedButton(
-          onPressed: () {
-            Navigator.pushNamed(context, '/register');
-          },
+          onPressed: () => Navigator.pushNamed(context, '/register'),
           child: const Text("Daftar"),
         ),
         const SizedBox(height: 30),
@@ -128,16 +153,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ListTile(
           leading: const Icon(Icons.settings),
           title: const Text("Pengaturan"),
-          onTap: () {
-            Navigator.pushNamed(context, '/settings');
-          },
+          onTap: () => Navigator.pushNamed(context, '/settings'),
         ),
         ListTile(
           leading: const Icon(Icons.feedback),
           title: const Text("Kritik dan Saran"),
-          onTap: () {
-            Navigator.pushNamed(context, '/feedback');
-          },
+          onTap: () => Navigator.pushNamed(context, '/feedback'),
         ),
       ],
     );
@@ -147,99 +168,71 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = supabase.auth.currentUser;
 
     return FutureBuilder<Map<String, dynamic>>(
-      future: _getProfileData(), // Fungsi baru yang return data
+      future: _getProfileData(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-
         if (snapshot.hasError || !snapshot.hasData) {
           return const Center(child: Text("Gagal memuat data profil."));
         }
 
         final profile = snapshot.data!;
+        final avatarUrl = profile['avatar_url'] ?? '';
         final email = user?.email ?? '';
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const SizedBox(height: 30),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const CircleAvatar(
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              GestureDetector(
+                onTap: _pickAndUploadAvatar,
+                child: CircleAvatar(
                   radius: 50,
-                  backgroundColor: Colors.red,
-                  child: Icon(Icons.person, size: 60, color: Colors.white),
+                  backgroundColor: Colors.grey.shade300,
+                  backgroundImage:
+                      avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+                  child: avatarUrl.isEmpty
+                      ? const Icon(Icons.person, size: 60, color: Colors.white)
+                      : null,
                 ),
-                const SizedBox(width: 20),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      profile['nama'] ?? '-',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      profile['username'] ?? '-',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    Text(
-                      email,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.black54,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _logout,
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text("Logout"),
-            ),
-            const SizedBox(height: 30),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.star),
-              title: const Text("Buku Favorit"),
-              onTap: () {
-                Navigator.pushNamed(context, '/favorite');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.history),
-              title: const Text("Terakhir Dibaca"),
-              onTap: () {
-                Navigator.pushNamed(context, '/recent');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.settings),
-              title: const Text("Pengaturan"),
-              onTap: () {
-                Navigator.pushNamed(context, '/settings');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.feedback),
-              title: const Text("Kritik dan Saran"),
-              onTap: () {
-                Navigator.pushNamed(context, '/feedback');
-              },
-            ),
-          ],
+              ),
+              const SizedBox(height: 10),
+              const Text("Klik gambar untuk mengubah foto"),
+              const SizedBox(height: 20),
+              Text(profile['nama'] ?? '-', style: const TextStyle(fontSize: 20)),
+              Text(profile['username'] ?? '-', style: const TextStyle(color: Colors.grey)),
+              Text(email, style: const TextStyle(color: Colors.grey)),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _logout,
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text("Logout"),
+              ),
+              const SizedBox(height: 30),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.star),
+                title: const Text("Buku Favorit"),
+                onTap: () => Navigator.pushNamed(context, '/favorite'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.history),
+                title: const Text("Terakhir Dibaca"),
+                onTap: () => Navigator.pushNamed(context, '/recent'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.settings),
+                title: const Text("Pengaturan"),
+                onTap: () => Navigator.pushNamed(context, '/settings'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.feedback),
+                title: const Text("Kritik dan Saran"),
+                onTap: () => Navigator.pushNamed(context, '/feedback'),
+              ),
+            ],
+          ),
         );
       },
     );
